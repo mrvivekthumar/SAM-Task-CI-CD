@@ -23,39 +23,37 @@ This repository contains a Serverless Application Model (SAM) project that deplo
 If you want, I can run the linter or SAM build locally in your environment next.
 
 **Architecture (Mermaid)**
-
 ```mermaid
 flowchart LR
-  subgraph AWS [AWS Account]
+  subgraph AWS["AWS Account"]
     direction TB
+
     Q["SQS: task-queue"]
     F["Lambda: sqs-consumer-function"]
     L["Layer: common-dependencies-layer"]
     SM["Secrets Manager"]
-    SES["SES (Send Email)"]
+    SES["SES Send Email"]
   end
+
+  Q -->|"SQS Event BatchSize 1"| F
+  F -->|"Uses"| L
+  F -->|"GetSecretValue"| SM
+  F -->|"Send Email"| SES
+
+  subgraph CI["CI/CD"]
+    GH["GitHub Actions sam-pipeline.yml"]
+  end
+
+  GH -->|"deploys"| F
 
   style Q fill:#FFFBCC,stroke:#FFB400,stroke-width:2px
   style F fill:#E8F8FF,stroke:#00A3FF,stroke-width:2px
   style L fill:#F0F7EC,stroke:#2E8B57,stroke-width:2px
   style SM fill:#FFF0F6,stroke:#FF4D6D,stroke-width:2px
   style SES fill:#FFF7E6,stroke:#FF8C00,stroke-width:2px
-
-  Q -->|SQS Event (BatchSize=1)| F
-  F -->|Uses| L
-  F -->|GetSecretValue| SM
-  F -->|Send Email| SES
-
-  classDef infra fill:#f4f4f4,stroke:#999,stroke-width:1px
-  class Q,F,L,SM,SES infra
-
-  %% Legend
-  subgraph CI [CI/CD]
-    GH["GitHub Actions: sam-pipeline.yml"]
-  end
   style GH fill:#EDF2FF,stroke:#4B6EF6,stroke-width:2px
-  GH -->|deploys| AWS
 ```
+
 
 The diagram above renders the project components and relationships: GitHub Actions deploys the SAM stack, creating the SQS queue, layer, and Lambda function. The Lambda reads secrets from Secrets Manager and can send emails via SES.
 
