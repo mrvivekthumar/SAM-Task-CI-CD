@@ -1,3 +1,78 @@
+# SAM CI/CD SQS Consumer
+
+This repository contains a Serverless Application Model (SAM) project that deploys an SQS queue, a shared Python layer, and an SQS consumer Lambda function. It also includes a GitHub Actions pipeline for CI/CD.
+
+**Repository Layout**
+- `template.yaml`: SAM template for resources and Lambda configuration.
+- `src/consumer/`: Lambda function source code and its `requirements.txt`.
+- `layers/common/requirements.txt`: Dependencies installed into the `common` layer.
+- `.github/workflows/sam-pipeline.yml`: CI/CD workflow that validates, builds and deploys the SAM app.
+- `events/sqs-event.json`: Example event for local testing.
+
+**Quick Commands**
+- Build: `sam build`
+- Deploy: `sam deploy --guided` or using the included CI pipeline
+- Local test (invoke with event): `sam local invoke "sqs-consumer-function" -e events/sqs-event.json`
+
+**Notes from quick review**
+- `template.yaml` defines an SQS `TaskQueue`, a `CommonLayer` (ContentUri: `layers/common/`) and `ConsumerFunction` using `consumer.app.lambda_handler`.
+- Lambda has policies for SQS poller, Secrets Manager access and SES send permissions.
+- Layer metadata sets `BuildMethod: python3.12` and `CompatibleRuntimes: python3.12` — these match the function runtime.
+- `.github/workflows/sam-pipeline.yml` validates, lints, optionally builds the layer, and deploys via SAM; it also sends a verification message to the deployed SQS queue.
+
+If you want, I can run the linter or SAM build locally in your environment next.
+
+**Architecture (Mermaid)**
+
+```mermaid
+flowchart LR
+  subgraph AWS [AWS Account]
+    direction TB
+    Q["SQS: task-queue"]
+    F["Lambda: sqs-consumer-function"]
+    L["Layer: common-dependencies-layer"]
+    SM["Secrets Manager"]
+    SES["SES (Send Email)"]
+  end
+
+  style Q fill:#FFFBCC,stroke:#FFB400,stroke-width:2px
+  style F fill:#E8F8FF,stroke:#00A3FF,stroke-width:2px
+  style L fill:#F0F7EC,stroke:#2E8B57,stroke-width:2px
+  style SM fill:#FFF0F6,stroke:#FF4D6D,stroke-width:2px
+  style SES fill:#FFF7E6,stroke:#FF8C00,stroke-width:2px
+
+  Q -->|SQS Event (BatchSize=1)| F
+  F -->|Uses| L
+  F -->|GetSecretValue| SM
+  F -->|Send Email| SES
+
+  classDef infra fill:#f4f4f4,stroke:#999,stroke-width:1px
+  class Q,F,L,SM,SES infra
+
+  %% Legend
+  subgraph CI [CI/CD]
+    GH["GitHub Actions: sam-pipeline.yml"]
+  end
+  style GH fill:#EDF2FF,stroke:#4B6EF6,stroke-width:2px
+  GH -->|deploys| AWS
+```
+
+The diagram above renders the project components and relationships: GitHub Actions deploys the SAM stack, creating the SQS queue, layer, and Lambda function. The Lambda reads secrets from Secrets Manager and can send emails via SES.
+
+**How to extend**
+- Add more fine-grained IAM resource ARNs instead of `Resource: "*"` for Secrets Manager and SES to tighten security.
+- Pin layer dependencies in `layers/common/requirements.txt` to fixed versions for reproducible builds.
+- Add CloudFormation outputs for the Lambda name and Layer ARN if you want them surfaced to CI.
+
+**Files I checked**
+- [template.yaml](template.yaml)
+- [src/consumer/app.py](src/consumer/app.py)
+- [src/consumer/service.py](src/consumer/service.py)
+- [src/consumer/secrets.py](src/consumer/secrets.py)
+- [layers/common/requirements.txt](layers/common/requirements.txt)
+- [.github/workflows/sam-pipeline.yml](.github/workflows/sam-pipeline.yml)
+
+If you'd like changes (more diagram colors, different layout, or expanded architecture details), tell me which parts to emphasize and I will update the README.
 # Template
 
 This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.

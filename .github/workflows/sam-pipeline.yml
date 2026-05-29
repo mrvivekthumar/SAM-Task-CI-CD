@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -54,10 +56,18 @@ jobs:
       - name: Detect Layer Changes
         id: layer-check
         run: |
+          echo "Checking for layer dependency changes..."
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
           if git diff --name-only HEAD~1 HEAD | grep 'layers/common/requirements.txt'; then
+            echo "Layer requirements changed"
             echo "layer_changed=true" >> $GITHUB_OUTPUT
           else
+            echo "No layer changes detected"
             echo "layer_changed=false" >> $GITHUB_OUTPUT
+          fi
+          else
+          echo "Previous commit not found, forcing layer build"
+          echo "layer_changed=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Build Layer Dependencies
@@ -71,7 +81,7 @@ jobs:
             -t layers/common/python
 
       - name: SAM Build
-        run: sam build
+        run: sam build --cached
 
       - name: SAM Deploy
         run: |
