@@ -12,12 +12,16 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  AWS_REGION: us-east-2
+  STACK_NAME: Task-SAM-SQS-Consumer
+
 jobs:
+
   sam-deploy:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -30,13 +34,14 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-2
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Install SAM CLI
         uses: aws-actions/setup-sam@v2
 
-      - name: Install Linting Tools
+      - name: Install Dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install flake8
 
       - name: SAM Validate
@@ -71,5 +76,35 @@ jobs:
       - name: SAM Deploy
         run: |
           sam deploy \
+            --stack-name $STACK_NAME \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
+
+      - name: Trigger SQS Message
+        run: |
+
+          echo "Fetching Queue URL from CloudFormation outputs..."
+
+          QUEUE_URL=$(aws cloudformation describe-stacks \
+            --stack-name $STACK_NAME \
+            --query "Stacks[0].Outputs[?OutputKey=='QueueUrl'].OutputValue" \
+            --output text \
+            --region $AWS_REGION)
+
+          if [ -z "$QUEUE_URL" ]; then
+            echo "Queue URL not found"
+            exit 1
+          fi
+
+          echo "Sending deployment verification message to SQS..."
+
+          aws sqs send-message \
+            --queue-url "$QUEUE_URL" \
+            --message-body '{"task":"deployment_success","trigger":"github_actions","environment":"develop"}' \
+            --region $AWS_REGION
+
+          echo "SQS message sent successfully"
+
+      - name: Deployment Success
+        run: |
+          echo "SAM deployment completed successfully"
