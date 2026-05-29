@@ -1,7 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
+
 Transform: AWS::Serverless-2016-10-31
 
 Description: Production Grade SAM CI/CD Pipeline Project
+
 
 Globals:
   Function:
@@ -9,26 +11,36 @@ Globals:
     Timeout: 30
     MemorySize: 256
 
+
 Resources:
+
   TaskQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: task-queue
 
+
   CommonLayer:
     Type: AWS::Serverless::LayerVersion
+
     Properties:
       LayerName: common-dependencies-layer
       Description: Shared dependencies for lambda
+
       ContentUri: layers/common/
+
       CompatibleRuntimes:
         - python3.12
+
       RetentionPolicy: Retain
+
     Metadata:
       BuildMethod: python3.12
 
+
   ConsumerFunction:
     Type: AWS::Serverless::Function
+
     Properties:
       FunctionName: sqs-consumer-function
 
@@ -41,9 +53,10 @@ Resources:
 
       Environment:
         Variables:
-          SECRET_NAME: my-app-secret
+          SECRET_NAME: my-app-secret-sam
 
       Policies:
+
         - AWSLambdaBasicExecutionRole
 
         - SQSPollerPolicy:
@@ -55,18 +68,28 @@ Resources:
                 - secretsmanager:GetSecretValue
               Resource: "*"
 
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+
       Events:
         SQSTrigger:
           Type: SQS
+
           Properties:
             Queue: !GetAtt TaskQueue.Arn
             BatchSize: 1
+
 
 Outputs:
 
   QueueUrl:
     Description: SQS Queue URL
     Value: !Ref TaskQueue
+
 
   LambdaFunction:
     Description: Lambda Function ARN

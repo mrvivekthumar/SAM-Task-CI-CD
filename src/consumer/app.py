@@ -1,17 +1,29 @@
 import json
 
+from consumer.secrets import get_secret
 from consumer.service import process_message
 
 
 def lambda_handler(event, context):
-    print("Received event:", json.dumps(event))
+
+    print(f"Received event: {json.dumps(event)}")
+
+    secret = get_secret()
+
+    print(f"Loaded Secret: {secret}")
 
     for record in event["Records"]:
-        body = json.loads(record["body"])
 
-        response = process_message(body)
+        message = json.loads(record["body"])
 
-        print("Processed Response:", response)
+        print(f"Processing Message: {message}")
+
+        response = process_message(
+            message=message,
+            secret=secret
+        )
+
+        print(f"Processed Response: {response}")
 
     return {
         "statusCode": 200,

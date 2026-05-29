@@ -1,20 +1,36 @@
-import requests
-
-from consumer.secrets import get_secret
+import boto3
 
 
-def process_message(message):
+ses_client = boto3.client("ses")
 
-    secret = get_secret()
 
-    print("Loaded Secret:", secret)
+def process_message(message, secret):
 
-    print("Processing message:", message)
+    sender_email = secret["sender_email"]
 
-    response = requests.get("https://httpbin.org/get")
+    receiver_email = secret["receiver_email"]
+
+    ses_client.send_email(
+        Source=sender_email,
+        Destination={
+            "ToAddresses": [
+                receiver_email
+            ]
+        },
+        Message={
+            "Subject": {
+                "Data": "SQS Message Processed"
+            },
+            "Body": {
+                "Text": {
+                    "Data": f"Processed message: {message}"
+                }
+            }
+        }
+    )
 
     return {
         "message": message,
-        "status_code": response.status_code,
-        "secret_loaded": True
+        "status_code": 200,
+        "email_sent": True
     }
