@@ -5,12 +5,13 @@ on:
     branches:
       - develop
 
+  workflow_dispatch:
+
 permissions:
   id-token: write
   contents: read
 
 jobs:
-
   sam-deploy:
     runs-on: ubuntu-latest
 
