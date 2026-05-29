@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: Production Grade SAM CI/CD Pipeline Project
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+
+Resources:
+  TaskQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: task-queue
+
+  CommonLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: common-dependencies-layer
+      Description: Shared dependencies for lambda
+      ContentUri: layers/common/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  ConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: sqs-consumer-function
+
+      CodeUri: src/
+
+      Handler: consumer.app.lambda_handler
+
+      Layers:
+        - !Ref CommonLayer
+
+      Environment:
+        Variables:
+          SECRET_NAME: my-app-secret
+
+      Policies:
+        - AWSLambdaBasicExecutionRole
+
+        - SQSPollerPolicy:
+            QueueName: !GetAtt TaskQueue.QueueName
+
+        - Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: "*"
+
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt TaskQueue.Arn
+            BatchSize: 1
+
+Outputs:
+
+  QueueUrl:
+    Description: SQS Queue URL
+    Value: !Ref TaskQueue
+
+  LambdaFunction:
+    Description: Lambda Function ARN
+    Value: !GetAtt ConsumerFunction.Arn

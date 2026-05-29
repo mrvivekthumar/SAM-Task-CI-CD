@@ -1,0 +1,73 @@
+name: SAM CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+
+  sam-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - name: Install SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Install Linting Tools
+        run: |
+          pip install flake8
+
+      - name: SAM Validate
+        run: sam validate --lint
+
+      - name: Python Lint Check
+        run: |
+          flake8 src/ --max-line-length=120
+
+      - name: Detect Layer Changes
+        id: layer-check
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep 'layers/common/requirements.txt'; then
+            echo "layer_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "layer_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Layer Dependencies
+        if: steps.layer-check.outputs.layer_changed == 'true'
+        run: |
+          rm -rf layers/common/python
+          mkdir -p layers/common/python
+
+          pip install \
+            -r layers/common/requirements.txt \
+            -t layers/common/python
+
+      - name: SAM Build
+        run: sam build
+
+      - name: SAM Deploy
+        run: |
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset

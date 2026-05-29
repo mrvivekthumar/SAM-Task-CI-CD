@@ -1,0 +1,7 @@
+{
+  "Records": [
+    {
+      "body": "{\"task\":\"send_email\",\"user_id\":101}"
+    }
+  ]
+}
