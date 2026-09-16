@@ -33,7 +33,7 @@ jobs:
           python-version: 3.12
 
       - name: Configure AWS Credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@6.2.4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
@@ -48,7 +48,6 @@ jobs:
 
       - name: SAM Validate
         run: sam validate --lint
-        
 
       - name: Python Lint Check
         run: |
