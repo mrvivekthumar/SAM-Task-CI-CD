@@ -53,7 +53,7 @@ Resources:
 
       Environment:
         Variables:
-          SECRET_NAME: my-app-secret-sam
+          SECRET_NAME: my-app-secret
 
       Policies:
 
